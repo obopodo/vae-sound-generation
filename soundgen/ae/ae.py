@@ -1,4 +1,7 @@
+import json
+
 import numpy as np
+import torch
 from torch import nn
 from torchinfo import summary
 
@@ -127,8 +130,32 @@ class Autoencoder(nn.Module):
         )
         self.decoder.append(nn.Sigmoid())  # Use Sigmoid for output layer to normalize the output
 
-    def _build_autoencoder(self):
-        pass
+    def save(self, weights_path: str, params_path: str):
+        self.save_parameters(params_path)
+        torch.save(self.state_dict(), weights_path)
+
+    def save_weights(self, weights_path: str):
+        torch.save(self.state_dict(), weights_path)
+
+    def save_parameters(self, params_path: str):
+        params = {
+            "input_shape": self.input_shape,
+            "conv_filters_number": self.conv_filters_number,
+            "conv_kernel_size": self.conv_kernel_size,
+            "conv_strides": self.conv_strides,
+            "latent_space_dim": self.latent_space_dim,
+            "padding": self.padding,
+        }
+        with open(params_path, "w") as f:
+            json.dump(params, f)
+
+    @classmethod
+    def load(cls, weights_path: str, params_path: str):
+        with open(params_path, "r") as f:
+            params = json.load(f)
+        model = cls(**params)
+        model.load_state_dict(torch.load(weights_path))
+        return model
 
 
 if __name__ == "__main__":
