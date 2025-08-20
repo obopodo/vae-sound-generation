@@ -57,7 +57,6 @@ class Autoencoder(nn.Module):
     def _build(self):
         self._build_encoder()
         self._build_decoder()
-        self._build_autoencoder()
 
     def _build_encoder(self):
         self._add_convolutions()
@@ -147,7 +146,7 @@ class Autoencoder(nn.Module):
             "padding": self.padding,
         }
         with open(params_path, "w") as f:
-            json.dump(params, f)
+            json.dump(params, f, indent=4)
 
     @classmethod
     def load(cls, weights_path: str, params_path: str):

@@ -24,9 +24,10 @@ def save_model(model: nn.Module, epoch=None):
 def train_one_epoch(
     model: nn.Module,
     data_loader: DataLoader,
+    *,
     loss_fn: nn.Module,
-    device: str,
     optimizer: Optimizer,
+    device: str,
     epoch: int,
     tb_writer: SummaryWriter = None,
 ):
@@ -47,7 +48,7 @@ def train_one_epoch(
 
         if batch % 100 == 0:
             last_loss = train_loss / 100
-            tb_writer.add_scalar("Loss/train", last_loss, batch * epoch)
+            tb_writer.add_scalar("Loss/train", last_loss, batch + epoch * len(data_loader))
             train_loss = 0.0
 
     return last_loss
@@ -69,6 +70,7 @@ def train(
     model: nn.Module,
     train_data_loader: DataLoader,
     valid_data_loader: DataLoader | None,
+    *,
     loss_fn: nn.Module,
     optimizer: Optimizer,
     device: str,
@@ -80,9 +82,9 @@ def train(
         train_loss = train_one_epoch(
             model,
             train_data_loader,
-            loss_fn,
-            optimizer,
-            device,
+            loss_fn=loss_fn,
+            optimizer=optimizer,
+            device=device,
             epoch=epoch,
             tb_writer=tb_writer,
         )
