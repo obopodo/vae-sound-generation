@@ -17,8 +17,7 @@ def save_model(model: nn.Module, epoch=None):
     model_name = f"checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
     if epoch is not None:
         model_name = model_name.replace("checkpoint", f"checkpoint_e{epoch}")
-    else:
-        save(model.state_dict(), model_folder / model_name)
+    save(model.state_dict(), model_folder / model_name)
 
 
 def train_one_epoch(
