@@ -29,7 +29,7 @@ def train_one_epoch(
     optimizer: Optimizer,
     device: str,
     epoch: int,
-    tb_writer: SummaryWriter = None,
+    tb_writer: SummaryWriter,
 ):
     model.train()
     train_loss = 0.0
@@ -46,9 +46,9 @@ def train_one_epoch(
         optimizer.step()
         train_loss += loss.item()
 
-        if batch % 100 == 0:
+        if batch % 100 == 99:
             last_loss = train_loss / 100
-            tb_writer.add_scalar("Loss/train", last_loss, batch + epoch * len(data_loader))
+            tb_writer.add_scalar("Loss/train", last_loss, batch + (epoch - 1) * len(data_loader))
             train_loss = 0.0
 
     return last_loss
