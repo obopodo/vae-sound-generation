@@ -11,9 +11,11 @@ from soundgen.train import train
 from soundgen.utils import get_device
 
 
-def load_mnist_data(root="./data", batch_size: int = 4) -> tuple[DataLoader, DataLoader]:
+def load_mnist_data(root="./data", batch_size: int = 4, return_loaders: bool = True) -> tuple[DataLoader, DataLoader]:
     train = datasets.MNIST(root=root, train=True, download=True, transform=ToTensor())
     test = datasets.MNIST(root=root, train=False, download=True, transform=ToTensor())
+    if not return_loaders:
+        return train, test
 
     train = DataLoader(train, batch_size=batch_size, shuffle=True)
     test = DataLoader(test, batch_size=batch_size, shuffle=False)
