@@ -8,13 +8,15 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from soundgen.vae import VAE
+
 tb_writer = SummaryWriter()
 
 
 def save_model(model: nn.Module, epoch=None):
     model_folder = Path(__file__).parent.parent / "models"
     model_folder.exists() or model_folder.mkdir(parents=True, exist_ok=True)
-    model_name = f"checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+    model_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_checkpoint.pth"
     if epoch is not None:
         model_name = model_name.replace("checkpoint", f"checkpoint_e{epoch}")
     save(model.state_dict(), model_folder / model_name)
@@ -37,7 +39,10 @@ def train_one_epoch(
 
         # Forward pass
         preds = model(X)
-        loss = loss_fn(preds, X)
+        if isinstance(model, VAE):
+            loss = loss_fn(preds, X, model.mu, model.log_var)
+        else:
+            loss = loss_fn(preds, X)
 
         # Backward pass
         optimizer.zero_grad()  # Clear gradients from previous step
@@ -45,7 +50,7 @@ def train_one_epoch(
         optimizer.step()
         train_loss += loss.item()
 
-        if batch % 100 == 99:
+        if batch == 0 or batch % 100 == 99:
             last_loss = train_loss / 100
             tb_writer.add_scalar("Loss/train", last_loss, batch + (epoch - 1) * len(data_loader))
             train_loss = 0.0
@@ -60,7 +65,10 @@ def evaluate(model: nn.Module, data_loader: DataLoader, loss_fn: nn.Module, devi
         for batch, (X, y) in enumerate(data_loader):
             X, _ = X.to(device), y.to(device)
             preds = model(X)
-            loss = loss_fn(preds, X)
+            if isinstance(model, VAE):
+                loss = loss_fn(preds, X, model.mu, model.log_var)
+            else:
+                loss = loss_fn(preds, X)
             valid_loss += loss.item()
     return valid_loss / len(data_loader)
 
@@ -76,6 +84,7 @@ def train(
     epochs: int,
     save_checkpoint: bool,
 ):
+    min_valid_loss = np.inf
     for epoch in range(1, epochs + 1):
         print(f"Epoch {epoch}/{epochs}")
         train_loss = train_one_epoch(
@@ -103,6 +112,7 @@ def train(
         print(f"LOSS train {train_loss} | valid {valid_loss}")
         print("-" * 30)
 
-        if save_checkpoint and valid_loss < train_loss:
+        if save_checkpoint and valid_loss < min_valid_loss:
             save_model(model, epoch=epoch)
+            min_valid_loss = valid_loss
     print("Training complete.")

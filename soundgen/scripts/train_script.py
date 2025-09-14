@@ -7,10 +7,9 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 from soundgen.ae import Autoencoder
-from soundgen.scripts.test_script import MODEL_CLASS
 from soundgen.train import train
 from soundgen.utils import get_device
-from soundgen.vae import VAE
+from soundgen.vae import VAE, vae_loss
 
 
 def load_mnist_data(root="./data", batch_size: int = 4, return_loaders: bool = True) -> tuple[DataLoader, DataLoader]:
@@ -27,8 +26,8 @@ def load_mnist_data(root="./data", batch_size: int = 4, return_loaders: bool = T
 if __name__ == "__main__":
     BATCH_SIZE = 32
     LEARNING_RATE = 0.0005
-    EPOCHS = 20
-    MODEL_FILE_PREFIX = "vae_mnist"
+    EPOCHS = 50
+    MODEL_FILE_SUFFIX = "vae_mnist"
     MODEL_CLASS = VAE  # VAE or Autoencoder
 
     train_data_loader, valid_data_loader = load_mnist_data(batch_size=BATCH_SIZE)
@@ -45,10 +44,14 @@ if __name__ == "__main__":
     model = model.to(device)
     print("Using device:", device)
 
-    loss = nn.MSELoss()
+    if MODEL_CLASS == VAE:
+        loss = vae_loss
+    else:
+        loss = nn.MSELoss()
+
     optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 
-    model.save_parameters(f"./models/{MODEL_FILE_PREFIX}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    model.save_parameters(f"./models/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{MODEL_FILE_SUFFIX}.json")
     train(
         model=model,
         train_data_loader=train_data_loader,

@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from torchinfo import summary
 
 from soundgen.ae import Autoencoder
-from soundgen.ae.train_ae import load_mnist_data
+from soundgen.scripts.train_script import load_mnist_data
 from soundgen.vae import VAE
 
 

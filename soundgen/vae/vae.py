@@ -184,14 +184,14 @@ class VAE(nn.Module):
         )
 
     def forward(self, x):
-        mean, log_var = self.encoder(x)
-        x = self.reparameterize(mean, log_var)
+        self.mu, self.log_var = self.encoder(x)
+        x = self.reparameterize(self.mu, self.log_var)
         x = self.decoder(x)
         return x
 
-    def reparameterize(self, mean, log_var):
+    def reparameterize(self, mu, log_var):
         epsilon = torch.randn_like(log_var)  # .to(DEVICE)
-        z = mean + torch.exp(log_var / 2) * epsilon  # reparameterization trick
+        z = mu + torch.exp(log_var / 2) * epsilon  # reparameterization trick
         return z
 
     def save(self, weights_path: str, params_path: str):
@@ -220,6 +220,13 @@ class VAE(nn.Module):
         model = cls(**params)
         model.load_state_dict(torch.load(weights_path))
         return model
+
+
+def vae_loss(preds, X, mu, log_var):
+    """Calculate VAE loss as a sum of reconstruction loss (MSE) and KL divergence."""
+    reconstruction_loss = nn.functional.mse_loss(preds, X, reduction="sum")
+    kl_divergence = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+    return reconstruction_loss + kl_divergence
 
 
 if __name__ == "__main__":
