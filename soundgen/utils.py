@@ -33,6 +33,7 @@ def calculate_conv2d_output_shape(
 if __name__ == "__main__":
     # (64, 44) -> (16, 11)
     x = (64, 44)
+    # Apply convolutions 3 times
     x = calculate_conv2d_output_shape(x, 3, padding=1, stride=1)
     x = calculate_conv2d_output_shape(x, 3, padding=1, stride=2)
     x = calculate_conv2d_output_shape(x, 3, padding=1, stride=2)
