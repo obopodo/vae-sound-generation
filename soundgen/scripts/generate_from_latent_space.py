@@ -6,6 +6,7 @@ import torch
 from matplotlib.widgets import Slider
 
 from soundgen.ae import Autoencoder
+from soundgen.vae import VAE
 
 
 def xy_to_tensor(x: float, y: float) -> torch.Tensor:
@@ -15,14 +16,15 @@ def xy_to_tensor(x: float, y: float) -> torch.Tensor:
 
 if __name__ == "__main__":
     top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/models")
-    weights_path = top_folder / "checkpoint_e15_20250820_230445.pth"
-    params_path = top_folder / "autoencoder_params_20250821_000208.json"
+    weights_path = top_folder / "checkpoint_e17_20250914_155332.pth"
+    params_path = top_folder / "vae_mnist_20250914_154615.json"
+    MODEL_CLASS = VAE  # VAE or Autoencoder
 
-    model = Autoencoder.load(weights_path, params_path)
+    model = MODEL_CLASS.load(weights_path, params_path)
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
 
-    def latent_to_image(model: Autoencoder, x: float, y: float) -> np.ndarray:
+    def latent_to_image(model: VAE | Autoencoder, x: float, y: float) -> np.ndarray:
         latent_vector = xy_to_tensor(x, y)
         reconstructed_image = model.decoder(latent_vector)
         reconstructed_image = reconstructed_image.squeeze(0).permute(1, 2, 0).detach().numpy()
