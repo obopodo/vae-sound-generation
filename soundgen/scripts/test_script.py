@@ -34,14 +34,15 @@ if __name__ == "__main__":
     RANDOM_SEED = 73
     MODEL_CLASS = VAE  # VAE or Autoencoder
 
-    top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/models")
-    weights_path = top_folder / "checkpoint_e17_20250914_155332.pth"
-    params_path = top_folder / "vae_mnist_20250914_154615.json"
+    top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/")
+    checkpoints_folder = top_folder / "models" / "20250916_161755"
+    weights_path = checkpoints_folder / "checkpoint_e008.pth"
+    params_path = checkpoints_folder / "vae_mnist.json"
 
     model = MODEL_CLASS.load(weights_path, params_path)
     # summary(model, input_size=[1] + list(model.input_shape))
 
-    _, test_dataset = load_mnist_data(root="./data", return_loaders=False)
+    _, test_dataset = load_mnist_data(root=top_folder / "data", return_loaders=False)
 
     np.random.seed(RANDOM_SEED)
     _, ax = plt.subplots(2, N_SAMPLES, figsize=(6 * N_SAMPLES, 4))

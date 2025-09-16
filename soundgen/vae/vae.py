@@ -1,4 +1,5 @@
 import json
+import logging
 
 import numpy as np
 import torch
@@ -7,6 +8,16 @@ from torchinfo import summary
 
 from soundgen.utils import calculate_conv2d_output_shape, get_device
 
+MSE_LOSS_WEIGHT = 100
+WARMUP_EPOCHS = 20
+
+logger = logging.getLogger("vae_logger")
+if not logger.hasHandlers():
+    logger.setLevel(logging.INFO)
+    fh = logging.FileHandler("vae_loss.log")
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
 class Encoder(nn.Module):
     def __init__(
@@ -63,8 +74,8 @@ class Encoder(nn.Module):
                     padding=self.padding,
                 )
             )
-            conv_layers.append(nn.ReLU())
             conv_layers.append(nn.BatchNorm2d(self.conv_filters_number[i]))
+            conv_layers.append(nn.ReLU())
 
         conv_layers.append(nn.Flatten())
         return conv_layers
@@ -154,8 +165,8 @@ class VAE(nn.Module):
         padding: int = 1,
     ):
         super().__init__()
-        self.mu = None
-        self.log_var = None
+        self._mu = None
+        self._log_var = None
         self.input_shape = input_shape  # [num_channels, height, width]
         self.num_channels = input_shape[0]
         self.conv_filters_number = conv_filters_number  # number of filters in each conv layer, eg [2, 4, 8]
@@ -184,8 +195,8 @@ class VAE(nn.Module):
         )
 
     def forward(self, x):
-        self.mu, self.log_var = self.encoder(x)
-        x = self.reparameterize(self.mu, self.log_var)
+        self._mu, self._log_var = self.encoder(x)
+        x = self.reparameterize(self._mu, self._log_var)
         x = self.decoder(x)
         return x
 
@@ -222,11 +233,13 @@ class VAE(nn.Module):
         return model
 
 
-def vae_loss(preds, X, mu, log_var):
+def vae_loss(preds, X, mu, log_var, epoch: int) -> torch.Tensor:
     """Calculate VAE loss as a sum of reconstruction loss (MSE) and KL divergence."""
-    reconstruction_loss = nn.functional.mse_loss(preds, X, reduction="sum")
-    kl_divergence = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-    return reconstruction_loss + kl_divergence
+    reconstruction_loss = nn.functional.mse_loss(preds, X, reduction="mean")
+    kl_divergence = -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
+    kl_beta = max(0, min(1.0, (epoch - 1) / WARMUP_EPOCHS))
+    logger.info(f"Epoch {epoch} | MSE: {reconstruction_loss.item()} | KLD: {kl_divergence.item()} | Beta: {kl_beta}")
+    return MSE_LOSS_WEIGHT * reconstruction_loss + kl_beta * kl_divergence
 
 
 if __name__ == "__main__":
@@ -235,7 +248,7 @@ if __name__ == "__main__":
         conv_filters_number=[32, 64, 64, 64],
         conv_kernel_size=[3, 3, 3, 3],
         conv_strides=[1, 2, 2, 1],
-        latent_space_dim=2,
+        latent_space_dim=16,
     )
     device = get_device()
     model = model.to(device)

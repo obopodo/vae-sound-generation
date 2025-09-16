@@ -15,5 +15,6 @@ models/
 # data
 data/
 
-# tensorboard files
+# log files
 runs/
+*.log
