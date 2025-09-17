@@ -9,7 +9,7 @@ from torchvision.transforms import ToTensor
 from soundgen.ae import Autoencoder
 from soundgen.train import train
 from soundgen.utils import get_device
-from soundgen.vae import VAE, logger, vae_loss
+from soundgen.vae import VAE, VAELoss, logger
 
 
 def load_mnist_data(root="./data", batch_size: int = 4, return_loaders: bool = True) -> tuple[DataLoader, DataLoader]:
@@ -28,11 +28,11 @@ if __name__ == "__main__":
 
     BATCH_SIZE = 32
     LEARNING_RATE = 0.0005
-    EPOCHS = 50
+    EPOCHS = 20
     MODEL_FILE_NAME = "vae_mnist.json"
     MODEL_CLASS = VAE  # VAE or Autoencoder
 
-    top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/")
+    top_folder = Path(__file__).parent.parent
 
     train_data_loader, valid_data_loader = load_mnist_data(root=top_folder / "data/", batch_size=BATCH_SIZE)
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         conv_filters_number=[32, 64, 64, 64],
         conv_kernel_size=[3, 3, 3, 3],
         conv_strides=[1, 2, 2, 1],
-        latent_space_dim=16,
+        latent_space_dim=2,
     )
 
     device = get_device()
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     print("Using device:", device)
 
     if MODEL_CLASS == VAE:
-        loss = vae_loss
+        loss = VAELoss(100, 8)
     else:
         loss = nn.MSELoss()
 

@@ -29,14 +29,18 @@ def plot_one_sample(real_image: torch.Tensor, reconstructed: torch.Tensor, label
     ax[1].set_title(f"Reconstructed Image")
 
 
+def plot_all_samples_2d():
+    pass
+
+
 if __name__ == "__main__":
     N_SAMPLES = 10
     RANDOM_SEED = 73
     MODEL_CLASS = VAE  # VAE or Autoencoder
 
-    top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/")
-    checkpoints_folder = top_folder / "models" / "20250916_161755"
-    weights_path = checkpoints_folder / "checkpoint_e008.pth"
+    top_folder = Path(__file__).parent.parent
+    checkpoints_folder = top_folder / "models" / "20250917_152711"
+    weights_path = checkpoints_folder / "checkpoint_e015.pth"
     params_path = checkpoints_folder / "vae_mnist.json"
 
     model = MODEL_CLASS.load(weights_path, params_path)

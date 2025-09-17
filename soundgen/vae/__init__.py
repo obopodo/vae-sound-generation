@@ -1,1 +1,1 @@
-from .vae import VAE, logger, vae_loss
+from .vae import VAE, VAELoss, logger

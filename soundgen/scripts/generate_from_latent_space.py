@@ -15,7 +15,7 @@ def xy_to_tensor(x: float, y: float) -> torch.Tensor:
 
 
 if __name__ == "__main__":
-    top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/")
+    top_folder = Path(__file__).parent.parent
     weights_path = top_folder / "models" / "20250915_003039_checkpoint_e36.pth"
     params_path = top_folder / "models" / "20250915_001417_vae_mnist.json"
     MODEL_CLASS = VAE  # VAE or Autoencoder

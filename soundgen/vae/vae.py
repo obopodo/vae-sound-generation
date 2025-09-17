@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -8,13 +9,11 @@ from torchinfo import summary
 
 from soundgen.utils import calculate_conv2d_output_shape, get_device
 
-MSE_LOSS_WEIGHT = 100
-WARMUP_EPOCHS = 20
-
 logger = logging.getLogger("vae_logger")
 if not logger.hasHandlers():
     logger.setLevel(logging.INFO)
-    fh = logging.FileHandler("vae_loss.log")
+    filename = Path(__file__).parent.parent / "vae_loss.log"
+    fh = logging.FileHandler(filename)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -233,13 +232,25 @@ class VAE(nn.Module):
         return model
 
 
-def vae_loss(preds, X, mu, log_var, epoch: int) -> torch.Tensor:
-    """Calculate VAE loss as a sum of reconstruction loss (MSE) and KL divergence."""
-    reconstruction_loss = nn.functional.mse_loss(preds, X, reduction="mean")
-    kl_divergence = -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
-    kl_beta = max(0, min(1.0, (epoch - 1) / WARMUP_EPOCHS))
-    logger.info(f"Epoch {epoch} | MSE: {reconstruction_loss.item()} | KLD: {kl_divergence.item()} | Beta: {kl_beta}")
-    return MSE_LOSS_WEIGHT * reconstruction_loss + kl_beta * kl_divergence
+class VAELoss(nn.Module):
+    def __init__(
+        self,
+        mse_loss_weight: int = 100,
+        warmup_epochs: int = 20,
+    ):
+        super().__init__()
+        self.mse_loss_weight = mse_loss_weight
+        self.warmup_epochs = warmup_epochs
+
+    def forward(self, preds, X, mu, log_var, epoch: int) -> torch.Tensor:
+        """Calculate VAE loss as a sum of reconstruction loss (MSE) and KL divergence."""
+        reconstruction_loss = nn.functional.mse_loss(preds, X, reduction="mean")
+        kl_divergence = -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
+        kl_beta = max(0, min(1.0, (epoch - 1) / self.warmup_epochs))
+        logger.info(
+            f"Epoch {epoch} | MSE: {reconstruction_loss.item()} | KLD: {kl_divergence.item()} | Beta: {kl_beta}"
+        )
+        return self.mse_loss_weight * reconstruction_loss + kl_beta * kl_divergence
 
 
 if __name__ == "__main__":
