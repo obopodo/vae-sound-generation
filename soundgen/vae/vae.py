@@ -9,7 +9,7 @@ from torchinfo import summary
 
 from soundgen.utils import calculate_conv2d_output_shape, get_device
 
-logger = logging.getLogger("vae_logger")
+logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
     logger.setLevel(logging.INFO)
     filename = Path(__file__).parent.parent / "vae_loss.log"
@@ -17,6 +17,7 @@ if not logger.hasHandlers():
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+
 
 class Encoder(nn.Module):
     def __init__(

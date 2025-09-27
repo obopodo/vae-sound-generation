@@ -48,7 +48,7 @@ def train_one_epoch(
         optimizer.step()
         train_loss += loss.item()
 
-        if batch == 0 or batch % 100 == 99:
+        if batch % 100 == 99:
             last_loss = train_loss / 100
             tb_writer.add_scalar("Loss/train", last_loss, batch + (epoch - 1) * len(data_loader))
             train_loss = 0.0
