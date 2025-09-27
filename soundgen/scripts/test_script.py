@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from torchinfo import summary
 
 from soundgen.ae import Autoencoder
-from soundgen.ae.train_ae import load_mnist_data
+from soundgen.scripts.train_script import load_mnist_data
 from soundgen.vae import VAE
 
 
@@ -29,19 +29,24 @@ def plot_one_sample(real_image: torch.Tensor, reconstructed: torch.Tensor, label
     ax[1].set_title(f"Reconstructed Image")
 
 
+def plot_all_samples_2d():
+    pass
+
+
 if __name__ == "__main__":
     N_SAMPLES = 10
     RANDOM_SEED = 73
     MODEL_CLASS = VAE  # VAE or Autoencoder
 
-    top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/models")
-    weights_path = top_folder / "checkpoint_e17_20250914_155332.pth"
-    params_path = top_folder / "vae_mnist_20250914_154615.json"
+    top_folder = Path(__file__).parent.parent
+    checkpoints_folder = top_folder / "models" / "20250917_152711"
+    weights_path = checkpoints_folder / "checkpoint_e015.pth"
+    params_path = checkpoints_folder / "vae_mnist.json"
 
     model = MODEL_CLASS.load(weights_path, params_path)
     # summary(model, input_size=[1] + list(model.input_shape))
 
-    _, test_dataset = load_mnist_data(root="./data", return_loaders=False)
+    _, test_dataset = load_mnist_data(root=top_folder / "data", return_loaders=False)
 
     np.random.seed(RANDOM_SEED)
     _, ax = plt.subplots(2, N_SAMPLES, figsize=(6 * N_SAMPLES, 4))

@@ -7,10 +7,9 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 from soundgen.ae import Autoencoder
-from soundgen.scripts.test_script import MODEL_CLASS
 from soundgen.train import train
 from soundgen.utils import get_device
-from soundgen.vae import VAE
+from soundgen.vae import VAE, VAELoss, logger
 
 
 def load_mnist_data(root="./data", batch_size: int = 4, return_loaders: bool = True) -> tuple[DataLoader, DataLoader]:
@@ -25,13 +24,17 @@ def load_mnist_data(root="./data", batch_size: int = 4, return_loaders: bool = T
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+
     BATCH_SIZE = 32
     LEARNING_RATE = 0.0005
     EPOCHS = 20
-    MODEL_FILE_PREFIX = "vae_mnist"
+    MODEL_FILE_NAME = "vae_mnist.json"
     MODEL_CLASS = VAE  # VAE or Autoencoder
 
-    train_data_loader, valid_data_loader = load_mnist_data(batch_size=BATCH_SIZE)
+    top_folder = Path(__file__).parent.parent
+
+    train_data_loader, valid_data_loader = load_mnist_data(root=top_folder / "data/", batch_size=BATCH_SIZE)
 
     model = MODEL_CLASS(
         input_shape=[1, 28, 28],
@@ -45,10 +48,25 @@ if __name__ == "__main__":
     model = model.to(device)
     print("Using device:", device)
 
-    loss = nn.MSELoss()
+    if MODEL_CLASS == VAE:
+        loss = VAELoss(100, 8)
+    else:
+        loss = nn.MSELoss()
+
+    ########### LOAD CHECKPOINT IF NEEDED ############
+    # top_folder = Path("/Users/borispodolnyi/Documents/coding_projects/vae_sound_generation/")
+    # checkpoints_folder = top_folder / "models" / "20250916_123423"
+    # weights_path = checkpoints_folder / "checkpoint_e050.pth"
+    # params_path = checkpoints_folder / "vae_mnist.json"
+
+    # model = MODEL_CLASS.load(weights_path, params_path).to(device)
+    ##################################################
+
     optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 
-    model.save_parameters(f"./models/{MODEL_FILE_PREFIX}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    models_folder = top_folder / "models" / datetime.now().strftime("%Y%m%d_%H%M%S")
+    models_folder.mkdir(parents=True, exist_ok=True)
+    model.save_parameters(models_folder / MODEL_FILE_NAME)
     train(
         model=model,
         train_data_loader=train_data_loader,
@@ -57,5 +75,5 @@ if __name__ == "__main__":
         optimizer=optimizer,
         device=device,
         epochs=EPOCHS,
-        save_checkpoint=True,
+        save_folder=models_folder,
     )

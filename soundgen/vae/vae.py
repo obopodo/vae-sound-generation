@@ -1,4 +1,6 @@
 import json
+import logging
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -6,6 +8,15 @@ from torch import nn
 from torchinfo import summary
 
 from soundgen.utils import calculate_conv2d_output_shape, get_device
+
+logger = logging.getLogger(__name__)
+if not logger.hasHandlers():
+    logger.setLevel(logging.INFO)
+    filename = Path(__file__).parent.parent / "vae_loss.log"
+    fh = logging.FileHandler(filename)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
 
 class Encoder(nn.Module):
@@ -63,8 +74,8 @@ class Encoder(nn.Module):
                     padding=self.padding,
                 )
             )
-            conv_layers.append(nn.ReLU())
             conv_layers.append(nn.BatchNorm2d(self.conv_filters_number[i]))
+            conv_layers.append(nn.ReLU())
 
         conv_layers.append(nn.Flatten())
         return conv_layers
@@ -154,8 +165,8 @@ class VAE(nn.Module):
         padding: int = 1,
     ):
         super().__init__()
-        self.mu = None
-        self.log_var = None
+        self._mu = None
+        self._log_var = None
         self.input_shape = input_shape  # [num_channels, height, width]
         self.num_channels = input_shape[0]
         self.conv_filters_number = conv_filters_number  # number of filters in each conv layer, eg [2, 4, 8]
@@ -184,14 +195,14 @@ class VAE(nn.Module):
         )
 
     def forward(self, x):
-        mean, log_var = self.encoder(x)
-        x = self.reparameterize(mean, log_var)
+        self._mu, self._log_var = self.encoder(x)
+        x = self.reparameterize(self._mu, self._log_var)
         x = self.decoder(x)
         return x
 
-    def reparameterize(self, mean, log_var):
+    def reparameterize(self, mu, log_var):
         epsilon = torch.randn_like(log_var)  # .to(DEVICE)
-        z = mean + torch.exp(log_var / 2) * epsilon  # reparameterization trick
+        z = mu + torch.exp(log_var / 2) * epsilon  # reparameterization trick
         return z
 
     def save(self, weights_path: str, params_path: str):
@@ -222,13 +233,34 @@ class VAE(nn.Module):
         return model
 
 
+class VAELoss(nn.Module):
+    def __init__(
+        self,
+        mse_loss_weight: int = 100,
+        warmup_epochs: int = 20,
+    ):
+        super().__init__()
+        self.mse_loss_weight = mse_loss_weight
+        self.warmup_epochs = warmup_epochs
+
+    def forward(self, preds, X, mu, log_var, epoch: int) -> torch.Tensor:
+        """Calculate VAE loss as a sum of reconstruction loss (MSE) and KL divergence."""
+        reconstruction_loss = nn.functional.mse_loss(preds, X, reduction="mean")
+        kl_divergence = -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
+        kl_beta = max(0, min(1.0, (epoch - 1) / self.warmup_epochs))
+        logger.info(
+            f"Epoch {epoch} | MSE: {reconstruction_loss.item()} | KLD: {kl_divergence.item()} | Beta: {kl_beta}"
+        )
+        return self.mse_loss_weight * reconstruction_loss + kl_beta * kl_divergence
+
+
 if __name__ == "__main__":
     model = VAE(
         input_shape=[1, 28, 28],
         conv_filters_number=[32, 64, 64, 64],
         conv_kernel_size=[3, 3, 3, 3],
         conv_strides=[1, 2, 2, 1],
-        latent_space_dim=2,
+        latent_space_dim=16,
     )
     device = get_device()
     model = model.to(device)

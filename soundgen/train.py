@@ -8,16 +8,16 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from soundgen.vae import VAE
+
 tb_writer = SummaryWriter()
 
 
-def save_model(model: nn.Module, epoch=None):
-    model_folder = Path(__file__).parent.parent / "models"
-    model_folder.exists() or model_folder.mkdir(parents=True, exist_ok=True)
-    model_name = f"checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+def save_model(model: nn.Module, save_folder: Path | str, epoch=None):
+    model_name = "checkpoint.pth"
     if epoch is not None:
-        model_name = model_name.replace("checkpoint", f"checkpoint_e{epoch}")
-    save(model.state_dict(), model_folder / model_name)
+        model_name = model_name.replace("checkpoint", f"checkpoint_e{epoch:03d}")
+    save(model.state_dict(), save_folder / model_name)
 
 
 def train_one_epoch(
@@ -37,7 +37,10 @@ def train_one_epoch(
 
         # Forward pass
         preds = model(X)
-        loss = loss_fn(preds, X)
+        if isinstance(model, VAE):
+            loss = loss_fn(preds, X, model._mu, model._log_var, epoch=epoch)
+        else:
+            loss = loss_fn(preds, X)
 
         # Backward pass
         optimizer.zero_grad()  # Clear gradients from previous step
@@ -53,14 +56,17 @@ def train_one_epoch(
     return last_loss
 
 
-def evaluate(model: nn.Module, data_loader: DataLoader, loss_fn: nn.Module, device: str):
+def evaluate(model: nn.Module, data_loader: DataLoader, loss_fn: nn.Module, device: str, epoch: int):
     model.eval()
     valid_loss = 0.0
     with torch.no_grad():
         for batch, (X, y) in enumerate(data_loader):
             X, _ = X.to(device), y.to(device)
             preds = model(X)
-            loss = loss_fn(preds, X)
+            if isinstance(model, VAE):
+                loss = loss_fn(preds, X, model._mu, model._log_var, epoch=epoch)
+            else:
+                loss = loss_fn(preds, X)
             valid_loss += loss.item()
     return valid_loss / len(data_loader)
 
@@ -74,8 +80,9 @@ def train(
     optimizer: Optimizer,
     device: str,
     epochs: int,
-    save_checkpoint: bool,
+    save_folder: str | None = None,
 ):
+    min_valid_loss = np.inf
     for epoch in range(1, epochs + 1):
         print(f"Epoch {epoch}/{epochs}")
         train_loss = train_one_epoch(
@@ -89,7 +96,7 @@ def train(
         )
 
         if valid_data_loader is not None:
-            valid_loss = evaluate(model, valid_data_loader, loss_fn, device)
+            valid_loss = evaluate(model, valid_data_loader, loss_fn, device, epoch=epoch)
         else:
             valid_loss = np.nan
 
@@ -103,6 +110,7 @@ def train(
         print(f"LOSS train {train_loss} | valid {valid_loss}")
         print("-" * 30)
 
-        if save_checkpoint and valid_loss < train_loss:
-            save_model(model, epoch=epoch)
+        if save_folder is not None:  # and valid_loss < min_valid_loss:
+            save_model(model, save_folder=save_folder, epoch=epoch)
+            # min_valid_loss = valid_loss
     print("Training complete.")
